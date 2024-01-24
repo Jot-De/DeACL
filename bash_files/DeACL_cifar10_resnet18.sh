@@ -2,8 +2,8 @@ python3 main_pretrain_AdvTraining.py \
     --dataset cifar10 \
     --backbone resnet18 \
     --data_dir ./data \
-    --max_epochs 100 \
-    --gpus 7 \
+    --max_epochs 2 \
+    --gpus 0 \
     --accelerator gpu \
     --precision 16 \
     --optimizer sgd \
@@ -11,7 +11,7 @@ python3 main_pretrain_AdvTraining.py \
     --lr 0.5 \
     --classifier_lr 0.5 \
     --weight_decay 5e-4 \
-    --batch_size 256 \
+    --batch_size 128 \
     --num_workers 4 \
     --brightness 0.4 \
     --contrast 0.4 \
@@ -22,6 +22,7 @@ python3 main_pretrain_AdvTraining.py \
     --num_crops_per_aug 1 1 \
     --name "res18_simclr-cifar10" \
     --save_checkpoint \
+    --checkpoint_frequency 1 \
     --method mocov2_kd_at \
     --limit_val_batches 0.2 \
     --distillation_teacher "simclr_cifar10" \

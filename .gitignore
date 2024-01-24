@@ -10,5 +10,8 @@ data/
 
 checkpoint/
 
-TeacherCKPT
+TeacherCKPT/
+deacl_py310/
+
+
 

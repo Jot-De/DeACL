@@ -1,9 +1,9 @@
 python3 main_pretrain_AdvTraining.py \
-    --dataset cifar100 \
-    --backbone resnet18 \
-    --data_dir ./data \
+    --dataset imagenet \
+    --backbone resnet50 \
+    --data_dir /home/datasets \
     --max_epochs 100 \
-    --gpus 0,1 \
+    --gpus 0,1,2,3\
     --accelerator gpu \
     --precision 16 \
     --optimizer sgd \
@@ -11,18 +11,19 @@ python3 main_pretrain_AdvTraining.py \
     --lr 0.5 \
     --classifier_lr 0.5 \
     --weight_decay 5e-4 \
-    --batch_size 256 \
+    --batch_size 950 \
     --num_workers 4 \
     --brightness 0.4 \
     --contrast 0.4 \
     --saturation 0.4 \
     --hue 0.1 \
     --gaussian_prob 0.0 0.0 \
-    --crop_size 32 \
+    --crop_size 224 \
     --num_crops_per_aug 1 1 \
-    --name "res18_simclr-cifar10" \
+    --name "simclr_resnet50_1x_imagenet" \
     --save_checkpoint \
+    --checkpoint_frequency 5 \
     --method mocov2_kd_at \
     --limit_val_batches 0.2 \
-    --distillation_teacher "simclr_cifar10" \
+    --distillation_teacher "simclr_resnet50_1x_imagenet" \
     --trades_k 2 

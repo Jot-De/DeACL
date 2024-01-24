@@ -28,6 +28,7 @@ from solo.args.setup import parse_args_pretrain
 from solo.methods import METHODS
 from solo.utils.auto_resumer import AutoResumer
 import wandb
+
 try:
     from solo.methods.dali import PretrainABC
 except ImportError as e:
@@ -49,16 +50,17 @@ import types
 from torchvision import transforms
 
 from solo.utils.checkpointer import Checkpointer
+
 # from solo.utils.classification_dataloader import prepare_data as prepare_data_classification
-from solo.utils.classification_dataloader_AdvTraining import \
-    prepare_data as prepare_data_classification
+from solo.utils.classification_dataloader_AdvTraining import (
+    prepare_data as prepare_data_classification,
+)
 from solo.utils.pretrain_dataloader_AdvTraining import (
-    prepare_dataloader, prepare_datasets, prepare_n_crop_transform,
-    prepare_transform)
-
-
-
-
+    prepare_dataloader,
+    prepare_datasets,
+    prepare_n_crop_transform,
+    prepare_transform,
+)
 
 
 def main():
@@ -78,7 +80,9 @@ def main():
         assert (
             _dali_avaliable
         ), "Dali is not currently avaiable, please install it first with [dali]."
-        MethodClass = types.new_class(f"Dali{MethodClass.__name__}", (PretrainABC, MethodClass))
+        MethodClass = types.new_class(
+            f"Dali{MethodClass.__name__}", (PretrainABC, MethodClass)
+        )
 
     model = MethodClass(**args.__dict__)
 
@@ -86,27 +90,34 @@ def main():
     if not args.dali:
         # asymmetric augmentations
         if args.unique_augs > 1:
-
             if args.dataset in ["cifar10", "cifar100", "svhn"]:
                 crop_size = 32
+                image_size = 32
             elif args.dataset in ["tinyimagenet"]:
                 crop_size = 64
+                image_size = 64
+            elif args.dataset in ["imagenet"]:
+                crop_size = 224
+                image_size = 224
             else:
                 raise
-            
-            weak_transforms = transforms.Compose([
-            transforms.RandomCrop(crop_size, padding=4),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-            ])
-            transform = [
-                weak_transforms
-            ]
+
+            weak_transforms = transforms.Compose(
+                [
+                    transforms.Resize(image_size),
+                    transforms.RandomCrop(crop_size, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                ]
+            )
+            transform = [weak_transforms]
 
         else:
             transform = [prepare_transform(args.dataset, **args.transform_kwargs)]
 
-        transform = prepare_n_crop_transform(transform, num_crops_per_aug=args.num_crops_per_aug)
+        transform = prepare_n_crop_transform(
+            transform, num_crops_per_aug=args.num_crops_per_aug, image_size=image_size
+        )
         if args.debug_augmentations:
             print("Transforms:")
             pprint(transform)
@@ -121,8 +132,6 @@ def main():
         train_loader = prepare_dataloader(
             train_dataset, batch_size=args.batch_size, num_workers=args.num_workers
         )
-
-
 
     # normal dataloader for when it is available
     if args.dataset == "custom" and (args.no_labels or args.val_dir is None):
@@ -148,7 +157,7 @@ def main():
             project=args.project,
             entity=args.entity,
             offline=args.offline,
-            settings=wandb.Settings(start_method="fork")
+            settings=wandb.Settings(start_method="fork"),
         )
         wandb_logger.watch(model, log="gradients", log_freq=100)
         wandb_logger.log_hyperparams(args)
@@ -181,17 +190,18 @@ def main():
     # the argument is the same, but we need to pass it as ckpt_path to trainer.fit
     ckpt_path = None
 
-
     trainer = Trainer.from_argparse_args(
         args,
         logger=wandb_logger if args.wandb else None,
         callbacks=callbacks,
-        enable_checkpointing=False,
+        enable_checkpointing=False, accelerator='dp'
     )
 
     # File backup
     if args.wandb:
-        experimentdir = f"code/{args.method}_{args.project}_{args.name}_{trainer.logger.version}"
+        experimentdir = (
+            f"code/{args.method}_{args.project}_{args.name}_{trainer.logger.version}"
+        )
         args.codepath = experimentdir
     else:
         experimentdir = f"code/{args.method}_{args.project}_{args.name}_test"
@@ -200,26 +210,24 @@ def main():
         os.mkdir("code")
 
     if os.path.exists(experimentdir):
-        print(experimentdir + ' : exists. overwrite it.')
+        print(experimentdir + " : exists. overwrite it.")
         shutil.rmtree(experimentdir)
         os.mkdir(experimentdir)
     else:
         os.mkdir(experimentdir)
 
-    shutil.copytree(f"solo", os.path.join(experimentdir, 'solo'))
-    shutil.copytree(f"bash_files", os.path.join(experimentdir, 'bash_files'))
-    shutil.copyfile(f"main_pretrain_AdvTraining.py", os.path.join(experimentdir, 'main_pretrain_AdvTraining.py'))
-    shutil.copyfile(f"adv_slf.py", os.path.join(experimentdir, 'adv_slf.py'))
-
-
-
+    #shutil.copytree(f"solo", os.path.join(experimentdir, "solo"))
+    #shutil.copytree(f"bash_files", os.path.join(experimentdir, "bash_files"))
+    #shutil.copyfile(
+    #     f"main_pretrain_AdvTraining.py",
+    #     os.path.join(experimentdir, "main_pretrain_AdvTraining.py"),
+    # )
+    # shutil.copyfile(f"adv_slf.py", os.path.join(experimentdir, "adv_slf.py"))
 
     if args.dali:
         trainer.fit(model, val_dataloaders=val_loader, ckpt_path=ckpt_path)
     else:
         trainer.fit(model, train_loader, val_loader, ckpt_path=ckpt_path)
-
-
 
 
 if __name__ == "__main__":

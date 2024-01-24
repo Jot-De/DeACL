@@ -117,7 +117,7 @@ class Checkpointer(Callback):
         if trainer.is_global_zero:
             args = vars(self.args)
             json_path = self.path / "args.json"
-            json.dump(args, open(json_path, "w"), default=lambda o: "<not serializable>")
+            #json.dump(args, open(json_path, "w"), default=lambda o: "<not serializable>")
 
     def save(self, trainer: pl.Trainer):
         """Saves current checkpoint.

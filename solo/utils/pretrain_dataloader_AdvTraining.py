@@ -112,19 +112,22 @@ class Solarization:
 
 
 class NCropAugmentation:
-    def __init__(self, transform: Callable, num_crops: int):
+    def __init__(self, transform: Callable, num_crops: int, image_size: int):
         """Creates a pipeline that apply a transformation pipeline multiple times.
 
         Args:
             transform (Callable): transformation pipeline.
             num_crops (int): number of crops to create from the transformation pipeline.
+            image_size (int): dataset image size. 224 for ImageNet, 32 for CIFAR
         """
 
         self.transform = transform
         self.num_crops = num_crops
 
         self.weak_aug = transforms.Compose(
-            [   transforms.RandomCrop(32, padding=4),
+            [
+                transforms.Resize(image_size),
+                transforms.RandomCrop(image_size, padding=4),
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.ToTensor(),
             ]
@@ -140,7 +143,10 @@ class NCropAugmentation:
             List[torch.Tensor]: an image in the tensor format.
         """
 
-        return [self.transform(x), self.weak_aug(x), ]
+        return [
+            self.transform(x),
+            self.weak_aug(x),
+        ]
 
     def __repr__(self) -> str:
         return f"{self.num_crops} x [{self.transform}]"
@@ -229,7 +235,7 @@ class CifarTransform(BaseTransform):
             std = (0.2673, 0.2564, 0.2762)
 
         self.transform = transforms.Compose(
-            [   
+            [
                 ###############################################################################
                 # We want to verify if the use of randomresizedcrop can bring performance boost
                 # CASE1: remove_randomresizecrop_to_crop_with_padding4
@@ -238,13 +244,11 @@ class CifarTransform(BaseTransform):
                 #
                 # CASE3: with_randomresizecrop
                 ###############################################################################
-
                 transforms.RandomResizedCrop(
                     (crop_size, crop_size),
                     scale=(min_scale, max_scale),
                     interpolation=transforms.InterpolationMode.BICUBIC,
                 ),
-
                 transforms.RandomApply(
                     [transforms.ColorJitter(brightness, contrast, saturation, hue)],
                     p=color_jitter_prob,
@@ -258,10 +262,9 @@ class CifarTransform(BaseTransform):
             ]
         )
 
-
         # To study the influence of other image aumentation method (ColorJitter, Grayscale, GaussianBlur)
         # self.transform = transforms.Compose(
-        #     [   
+        #     [
         #         ###############################################################################
         #         # We want to verify if the use of randomresizedcrop can bring performance boost
         #         # CASE1: remove_randomresizecrop_to_crop_with_padding4
@@ -387,6 +390,7 @@ class ImagenetTransform(BaseTransform):
 
         self.transform = transforms.Compose(
             [
+                transforms.Resize(224),
                 transforms.RandomResizedCrop(
                     crop_size,
                     scale=(min_scale, max_scale),
@@ -401,7 +405,9 @@ class ImagenetTransform(BaseTransform):
                 transforms.RandomApply([Solarization()], p=solarization_prob),
                 transforms.RandomHorizontalFlip(p=horizontal_flip_prob),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)),
+                transforms.Normalize(
+                    mean=(0.485, 0.456, 0.406), std=(0.228, 0.224, 0.225)
+                ),
             ]
         )
 
@@ -496,13 +502,16 @@ def prepare_transform(dataset: str, **kwargs) -> Any:
 
 
 def prepare_n_crop_transform(
-    transforms: List[Callable], num_crops_per_aug: List[int]
+    transforms: List[Callable],
+    num_crops_per_aug: List[int],
+    image_size: int,
 ) -> NCropAugmentation:
     """Turns a single crop transformation to an N crops transformation.
 
     Args:
         transforms (List[Callable]): list of transformations.
         num_crops_per_aug (List[int]): number of crops per pipeline.
+        image_size (int): dataset image size. 224 for ImageNet, 32 for CIFAR
 
     Returns:
         NCropAugmentation: an N crop transformation.
@@ -512,7 +521,7 @@ def prepare_n_crop_transform(
 
     T = []
     for transform, num_crops in zip(transforms, num_crops_per_aug):
-        T.append(NCropAugmentation(transform, num_crops))
+        T.append(NCropAugmentation(transform, num_crops, image_size))
     return FullTransformPipeline(T)
 
 
@@ -540,7 +549,9 @@ def prepare_datasets(
     """
 
     if data_dir is None:
-        sandbox_folder = Path(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+        sandbox_folder = Path(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        )
         data_dir = sandbox_folder / "datasets"
 
     if train_dir is None:
@@ -568,7 +579,6 @@ def prepare_datasets(
     elif dataset in ["imagenet", "imagenet100"]:
         train_dir = data_dir / train_dir
         train_dataset = dataset_with_index(ImageFolder)(train_dir, transform)
-
     elif dataset == "custom":
         train_dir = data_dir / train_dir
 

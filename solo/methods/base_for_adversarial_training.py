@@ -46,13 +46,16 @@ from solo.utils.lars import LARSWrapper
 from solo.utils.metrics import accuracy_at_k, weighted_mean
 from solo.utils.momentum import MomentumUpdater, initialize_momentum_params
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
-from torchvision.models import  resnet50
+from torchvision.models import resnet50
 
 from solo.models.resnet_add_normalize import resnet18_NormalizeInput
 from solo.models.wide_resnet import wide_resnet28w10
 
+
 def static_lr(
-    get_lr: Callable, param_group_indexes: Sequence[int], lrs_to_replace: Sequence[float]
+    get_lr: Callable,
+    param_group_indexes: Sequence[int],
+    lrs_to_replace: Sequence[float],
 ):
     lrs = get_lr()
     for idx, lr in zip(param_group_indexes, lrs_to_replace):
@@ -61,7 +64,6 @@ def static_lr(
 
 
 class BaseMethod(pl.LightningModule):
-
     _SUPPORTED_BACKBONES = {
         # "resnet18": resnet18,
         "resnet18": resnet18_NormalizeInput,
@@ -284,7 +286,9 @@ class BaseMethod(pl.LightningModule):
         # optimizer
         SUPPORTED_OPTIMIZERS = ["sgd", "adam", "adamw"]
 
-        parser.add_argument("--optimizer", choices=SUPPORTED_OPTIMIZERS, type=str, required=True)
+        parser.add_argument(
+            "--optimizer", choices=SUPPORTED_OPTIMIZERS, type=str, required=True
+        )
         parser.add_argument("--lars", action="store_true")
         parser.add_argument("--grad_clip_lars", action="store_true")
         parser.add_argument("--eta_lars", default=1e-3, type=float)
@@ -300,7 +304,9 @@ class BaseMethod(pl.LightningModule):
             "none",
         ]
 
-        parser.add_argument("--scheduler", choices=SUPPORTED_SCHEDULERS, type=str, default="reduce")
+        parser.add_argument(
+            "--scheduler", choices=SUPPORTED_SCHEDULERS, type=str, default="reduce"
+        )
         parser.add_argument("--lr_decay_steps", default=None, type=int, nargs="+")
         parser.add_argument("--min_lr", default=0.0, type=float)
         parser.add_argument("--warmup_start_lr", default=0.003, type=float)
@@ -387,7 +393,9 @@ class BaseMethod(pl.LightningModule):
                 eta_min=self.min_lr,
             )
         elif self.scheduler == "cosine":
-            scheduler = CosineAnnealingLR(optimizer, self.max_epochs, eta_min=self.min_lr)
+            scheduler = CosineAnnealingLR(
+                optimizer, self.max_epochs, eta_min=self.min_lr
+            )
         elif self.scheduler == "step":
             scheduler = MultiStepLR(optimizer, self.lr_decay_steps)
         else:
@@ -491,7 +499,9 @@ class BaseMethod(pl.LightningModule):
             targets = targets.repeat(self.num_large_crops)
             mask = targets != -1
             self.knn(
-                train_features=torch.cat(outs["feats"][: self.num_large_crops])[mask].detach(),
+                train_features=torch.cat(outs["feats"][: self.num_large_crops])[
+                    mask
+                ].detach(),
                 train_targets=targets[mask],
             )
 
@@ -518,14 +528,16 @@ class BaseMethod(pl.LightningModule):
         out = self._base_shared_step(X, targets)
 
         if self.knn_eval and not self.trainer.sanity_checking:
-            self.knn(test_features=out.pop("feats").detach(), test_targets=targets.detach())
+            self.knn(
+                test_features=out.pop("feats").detach(), test_targets=targets.detach()
+            )
 
         metrics = {
             "batch_size": batch_size,
             "val_loss": out["loss"],
             "val_acc1": out["acc1"],
             "val_acc5": out["acc5"],
-            "feats": out["feats"]
+            "feats": out["feats"],
         }
         return metrics
 
@@ -603,7 +615,9 @@ class BaseMomentumMethod(BaseMethod):
 
         # momentum classifier
         if momentum_classifier:
-            self.momentum_classifier: Any = nn.Linear(self.features_dim, self.num_classes)
+            self.momentum_classifier: Any = nn.Linear(
+                self.features_dim, self.num_classes
+            )
         else:
             self.momentum_classifier = None
 
@@ -653,9 +667,9 @@ class BaseMomentumMethod(BaseMethod):
             ArgumentParser: same as the argument, used to avoid errors.
         """
 
-        parent_parser = super(BaseMomentumMethod, BaseMomentumMethod).add_model_specific_args(
-            parent_parser
-        )
+        parent_parser = super(
+            BaseMomentumMethod, BaseMomentumMethod
+        ).add_model_specific_args(parent_parser)
         parser = parent_parser.add_argument_group("base")
 
         # momentum settings
@@ -681,7 +695,9 @@ class BaseMomentumMethod(BaseMethod):
         feats = self.momentum_backbone(X)
         return {"feats": feats}
 
-    def _shared_step_momentum(self, X: torch.Tensor, targets: torch.Tensor) -> Dict[str, Any]:
+    def _shared_step_momentum(
+        self, X: torch.Tensor, targets: torch.Tensor
+    ) -> Dict[str, Any]:
         """Forwards a batch of images X in the momentum backbone and optionally computes the
         classification loss, the logits, the features, acc@1 and acc@5 for of momentum classifier.
 
@@ -731,7 +747,8 @@ class BaseMomentumMethod(BaseMethod):
 
         momentum_outs = [self._shared_step_momentum(x, targets) for x in X]
         momentum_outs = {
-            "momentum_" + k: [out[k] for out in momentum_outs] for k in momentum_outs[0].keys()
+            "momentum_" + k: [out[k] for out in momentum_outs]
+            for k in momentum_outs[0].keys()
         }
 
         if self.momentum_classifier is not None:
@@ -759,7 +776,11 @@ class BaseMomentumMethod(BaseMethod):
         return {**outs, **momentum_outs}
 
     def on_train_batch_end(
-        self, outputs: Dict[str, Any], batch: Sequence[Any], batch_idx: int, dataloader_idx: int
+        self,
+        outputs: Dict[str, Any],
+        batch: Sequence[Any],
+        batch_idx: int,
+        dataloader_idx: int,
     ):
         """Performs the momentum update of momentum pairs using exponential moving average at the
         end of the current training step if an optimizer step was performed.
@@ -851,14 +872,15 @@ class BaseMomentumMethod(BaseMethod):
 
 _SUPPORT_KD_TEACHER = {
     # cifar10 pretrained
+    "simclr_resnet50_1x_imagenet" : "simclr-v1-resnet50-1x-imagenet.pth",
+    "simsiam_resnet50_imagenet" : "checkpoint_0099.pth.tar",
+    "dino_vits16_imagenet": "dino_deitsmall16_pretrain.pth",
     "mocov2_cifar10": "mocov2plus-cifar10-1nhrg2pm-ep=999.ckpt",
-    "simclr_cifar10":"simclr-cifar10-b30xch14-ep=999.ckpt",
-
+    "simclr_cifar10": "simclr-cifar10-b30xch14-ep=999.ckpt",
 }
 
+
 class BaseDistillationATMethod(BaseMethod):
-
-
     def __init__(
         self,
         base_tau_momentum: float,
@@ -906,33 +928,61 @@ class BaseDistillationATMethod(BaseMethod):
         else:
             self.features_dim = self.momentum_backbone.num_features
 
-
         # Teacher model pretrained weight loading
         teacher_root_dir = "./TeacherCKPT/"
-        self.teacher_ckpt_dir = teacher_root_dir + _SUPPORT_KD_TEACHER[distillation_teacher]
-        teacher_ckpt = torch.load(self.teacher_ckpt_dir)["state_dict"]
+        self.teacher_ckpt_dir = (
+            teacher_root_dir + _SUPPORT_KD_TEACHER[distillation_teacher]
+        )
+        if distillation_teacher == "dino_vits16_imagenet":
+            teacher_ckpt = torch.load(self.teacher_ckpt_dir)
+        else:
+            teacher_ckpt = torch.load(self.teacher_ckpt_dir)["state_dict"]
 
+        #print("-"*20)
+        print(teacher_ckpt.keys())
+        #print("-"*20)
         # it seems that we can not assigning values to a model
         new_dict = {}
         self.projector_state_dict = {}
         classifier_state_dict = {}
-        for key, weights  in teacher_ckpt.items():
+        for key, weights in teacher_ckpt.items():
             ori_key = key
             if "classifier" in key:
-                key = key.replace("classifier.","")
+                key = key.replace("classifier.", "")
 
                 classifier_state_dict[key] = weights
-            if ("momentum_projector" not in key) and ("projector" in key) :
-                key = key.replace("projector.","")
+
+            if distillation_teacher =="simclr_resnet50_1x_imagenet":
+                if "fc.weight" in key or "fc.bias" in key:
+                    key = key.replace("fc.", "")
+                    classifier_state_dict[key] = weights
+                else:
+                    new_dict[key] = teacher_ckpt[ori_key]
+
+
+            if ("momentum_projector" not in key) and ("projector" in key):
+                key = key.replace("projector.", "")
                 self.projector_state_dict[key] = weights
 
-            if( "projector" in key) or ("momentum" in key):
+            if ("projector" in key) or ("momentum" in key):
                 continue
             # print(ori_key)
+            if "module." in key:
+                key = key.replace("module.", "")
+
             if "backbone." in key:
-                key = key.replace("backbone.","")
+                key = key.replace("backbone.", "")
                 new_dict[key] = teacher_ckpt[ori_key]
-                
+            
+            if "encoder." in key:
+                key = key.replace("encoder.", "")
+                new_dict[key] = teacher_ckpt[ori_key]
+        
+
+        
+        #print("-"*20)
+        print(new_dict.keys())
+        print(classifier_state_dict.keys())
         # import ipdb; ipdb.set_trace()
         mathch_status = self.momentum_backbone.load_state_dict(new_dict, strict=False)
         print(mathch_status)
@@ -943,17 +993,21 @@ class BaseDistillationATMethod(BaseMethod):
             mathch_status = self.backbone.load_state_dict(new_dict, strict=False)
             print(mathch_status)
 
-            mathch_status = self.classifier.load_state_dict(classifier_state_dict, strict=False)
+            mathch_status = self.classifier.load_state_dict(
+                classifier_state_dict, strict=False
+            )
             print(mathch_status)
 
-            mathch_status = self.classifier_adv.load_state_dict(classifier_state_dict, strict=False)
+            mathch_status = self.classifier_adv.load_state_dict(
+                classifier_state_dict, strict=False
+            )
             print(mathch_status)
-
-
 
         # momentum classifier
         if momentum_classifier:
-            self.momentum_classifier: Any = nn.Linear(self.features_dim, self.num_classes)
+            self.momentum_classifier: Any = nn.Linear(
+                self.features_dim, self.num_classes
+            )
         else:
             self.momentum_classifier = None
 
@@ -1000,9 +1054,9 @@ class BaseDistillationATMethod(BaseMethod):
             ArgumentParser: same as the argument, used to avoid errors.
         """
 
-        parent_parser = super(BaseMomentumMethod, BaseMomentumMethod).add_model_specific_args(
-            parent_parser
-        )
+        parent_parser = super(
+            BaseMomentumMethod, BaseMomentumMethod
+        ).add_model_specific_args(parent_parser)
         parser = parent_parser.add_argument_group("base")
 
         # momentum settings
@@ -1012,10 +1066,13 @@ class BaseDistillationATMethod(BaseMethod):
 
         parser.add_argument("--student_scratch", action="store_true")
 
-
         SUPPORTED_TEACHER = _SUPPORT_KD_TEACHER.keys()
-        parser.add_argument("--distillation_teacher", choices=SUPPORTED_TEACHER, default="mocov2", type=str)
-
+        parser.add_argument(
+            "--distillation_teacher",
+            choices=SUPPORTED_TEACHER,
+            default="mocov2",
+            type=str,
+        )
 
         return parent_parser
 
@@ -1035,7 +1092,9 @@ class BaseDistillationATMethod(BaseMethod):
         feats = self.momentum_backbone(X)
         return {"feats": feats}
 
-    def _shared_step_momentum(self, X: torch.Tensor, targets: torch.Tensor) -> Dict[str, Any]:
+    def _shared_step_momentum(
+        self, X: torch.Tensor, targets: torch.Tensor
+    ) -> Dict[str, Any]:
         """Forwards a batch of images X in the momentum backbone and optionally computes the
         classification loss, the logits, the features, acc@1 and acc@5 for of momentum classifier.
 
@@ -1085,7 +1144,8 @@ class BaseDistillationATMethod(BaseMethod):
 
         momentum_outs = [self._shared_step_momentum(x, targets) for x in X]
         momentum_outs = {
-            "momentum_" + k: [out[k] for out in momentum_outs] for k in momentum_outs[0].keys()
+            "momentum_" + k: [out[k] for out in momentum_outs]
+            for k in momentum_outs[0].keys()
         }
 
         if self.momentum_classifier is not None:
@@ -1113,7 +1173,11 @@ class BaseDistillationATMethod(BaseMethod):
         return {**outs, **momentum_outs}
 
     def on_train_batch_end(
-        self, outputs: Dict[str, Any], batch: Sequence[Any], batch_idx: int, dataloader_idx: int
+        self,
+        outputs: Dict[str, Any],
+        batch: Sequence[Any],
+        batch_idx: int,
+        dataloader_idx: int,
     ):
         """Performs the momentum update of momentum pairs using exponential moving average at the
         end of the current training step if an optimizer step was performed.
@@ -1160,7 +1224,6 @@ class BaseDistillationATMethod(BaseMethod):
                 "momentum_val_acc5": out["acc5"],
             }
 
-
         # robustness accuracy testing
         torch.set_grad_enabled(True)
         adv_images = self.PGD_val_adv(X, targets, adv_classifier=False)
@@ -1168,10 +1231,10 @@ class BaseDistillationATMethod(BaseMethod):
         out_ra = self._base_shared_step(adv_images, targets)
 
         robust_metrics = {
-                "batch_size": batch_size,
-                "RA_val_loss": out_ra["loss"],
-                "RA_val_acc1": out_ra["acc1"],
-                "RA_val_acc5": out_ra["acc5"],
+            "batch_size": batch_size,
+            "RA_val_loss": out_ra["loss"],
+            "RA_val_acc1": out_ra["acc1"],
+            "RA_val_acc5": out_ra["acc5"],
         }
 
         # Adv classifier testing
@@ -1182,11 +1245,13 @@ class BaseDistillationATMethod(BaseMethod):
         top_k_max = min(5, logits.size(1))
         acc1, acc5 = accuracy_at_k(logits, targets, top_k=(1, top_k_max))
 
-        robust_metrics.update({
-            "val_class_loss_adv_classifier": class_loss_adv,
-            "val_acc1_adv_classifier": acc1,
-            "val_acc5_adv_classifier": acc5,
-        })
+        robust_metrics.update(
+            {
+                "val_class_loss_adv_classifier": class_loss_adv,
+                "val_acc1_adv_classifier": acc1,
+                "val_acc5_adv_classifier": acc5,
+            }
+        )
 
         # robustness accuracy Adv classifier testing
 
@@ -1204,11 +1269,13 @@ class BaseDistillationATMethod(BaseMethod):
         top_k_max = min(5, logits.size(1))
         acc1, acc5 = accuracy_at_k(logits, targets, top_k=(1, top_k_max))
 
-        robust_metrics.update({
-            "RA_val_class_loss_adv_classifier": class_loss_adv,
-            "RA_val_acc1_adv_classifier": acc1,
-            "RA_val_acc5_adv_classifier": acc5,
-        })
+        robust_metrics.update(
+            {
+                "RA_val_class_loss_adv_classifier": class_loss_adv,
+                "RA_val_acc1_adv_classifier": acc1,
+                "RA_val_acc5_adv_classifier": acc5,
+            }
+        )
 
         return parent_metrics, metrics, robust_metrics
 
@@ -1244,17 +1311,47 @@ class BaseDistillationATMethod(BaseMethod):
         ra_val_loss = weighted_mean(robust_metrics, "RA_val_loss", "batch_size")
         ra_val_acc1 = weighted_mean(robust_metrics, "RA_val_acc1", "batch_size")
         ra_val_acc5 = weighted_mean(robust_metrics, "RA_val_acc5", "batch_size")
-        log.update({"RA_val_loss": ra_val_loss, "RA_val_acc1": ra_val_acc1, "RA_val_acc5": ra_val_acc5})
-        
-        ra_val_loss = weighted_mean(robust_metrics, "val_class_loss_adv_classifier", "batch_size")
-        ra_val_acc1 = weighted_mean(robust_metrics, "val_acc1_adv_classifier", "batch_size")
-        ra_val_acc5 = weighted_mean(robust_metrics, "val_acc5_adv_classifier", "batch_size")
-        log.update({"val_class_loss_adv_classifier": ra_val_loss, "val_acc1_adv_classifier": ra_val_acc1, "val_acc5_adv_classifier": ra_val_acc5})
+        log.update(
+            {
+                "RA_val_loss": ra_val_loss,
+                "RA_val_acc1": ra_val_acc1,
+                "RA_val_acc5": ra_val_acc5,
+            }
+        )
 
-        ra_val_loss = weighted_mean(robust_metrics, "RA_val_class_loss_adv_classifier", "batch_size")
-        ra_val_acc1 = weighted_mean(robust_metrics, "RA_val_acc1_adv_classifier", "batch_size")
-        ra_val_acc5 = weighted_mean(robust_metrics, "RA_val_acc5_adv_classifier", "batch_size")
-        log.update({"RA_val_class_loss_adv_classifier": ra_val_loss, "RA_val_acc1_adv_classifier": ra_val_acc1, "RA_val_acc5_adv_classifier": ra_val_acc5})
+        ra_val_loss = weighted_mean(
+            robust_metrics, "val_class_loss_adv_classifier", "batch_size"
+        )
+        ra_val_acc1 = weighted_mean(
+            robust_metrics, "val_acc1_adv_classifier", "batch_size"
+        )
+        ra_val_acc5 = weighted_mean(
+            robust_metrics, "val_acc5_adv_classifier", "batch_size"
+        )
+        log.update(
+            {
+                "val_class_loss_adv_classifier": ra_val_loss,
+                "val_acc1_adv_classifier": ra_val_acc1,
+                "val_acc5_adv_classifier": ra_val_acc5,
+            }
+        )
+
+        ra_val_loss = weighted_mean(
+            robust_metrics, "RA_val_class_loss_adv_classifier", "batch_size"
+        )
+        ra_val_acc1 = weighted_mean(
+            robust_metrics, "RA_val_acc1_adv_classifier", "batch_size"
+        )
+        ra_val_acc5 = weighted_mean(
+            robust_metrics, "RA_val_acc5_adv_classifier", "batch_size"
+        )
+        log.update(
+            {
+                "RA_val_class_loss_adv_classifier": ra_val_loss,
+                "RA_val_acc1_adv_classifier": ra_val_acc1,
+                "RA_val_acc5_adv_classifier": ra_val_acc5,
+            }
+        )
 
         self.log_dict(log, sync_dist=True)
 
@@ -1265,7 +1362,6 @@ class BaseDistillationATMethod(BaseMethod):
         # images = images.clone().detach().to(self.device)
         # labels = labels.clone().detach().to(self.device)
 
-
         loss = nn.CrossEntropyLoss(size_average=False)
 
         steps = 20
@@ -1275,11 +1371,9 @@ class BaseDistillationATMethod(BaseMethod):
         adv_images = images.clone().detach()
 
         # if self.random_start:
-            # Starting at a uniformly random point
+        # Starting at a uniformly random point
         adv_images = adv_images + torch.empty_like(adv_images).uniform_(-eps, eps)
         adv_images = torch.clamp(adv_images, min=0, max=1).detach()
-
-
 
         for _ in range(steps):
             adv_images.requires_grad = True
@@ -1292,15 +1386,15 @@ class BaseDistillationATMethod(BaseMethod):
                 outputs = self.classifier(outputs)
 
             # Calculate loss
-            cost = loss(outputs, labels).sum()*256
+            cost = loss(outputs, labels).sum() * 256
 
             # Update adversarial images
-            grad = torch.autograd.grad(cost, adv_images,
-                                       retain_graph=False, create_graph=False)[0]
+            grad = torch.autograd.grad(
+                cost, adv_images, retain_graph=False, create_graph=False
+            )[0]
 
-            adv_images = adv_images.detach() + alpha*grad.sign()
+            adv_images = adv_images.detach() + alpha * grad.sign()
             delta = torch.clamp(adv_images - images, min=-eps, max=eps)
             adv_images = torch.clamp(images + delta, min=0, max=1).detach()
 
         return adv_images
-
