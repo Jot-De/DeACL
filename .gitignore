@@ -13,5 +13,4 @@ checkpoint/
 TeacherCKPT/
 deacl_py310/
 
-
-
+*.out

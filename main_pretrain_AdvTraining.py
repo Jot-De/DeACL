@@ -105,7 +105,7 @@ def main():
             weak_transforms = transforms.Compose(
                 [
                     transforms.Resize(image_size),
-                    transforms.RandomCrop(crop_size, padding=4),
+                    transforms.RandomCrop(crop_size, padding=4*image_size//32),
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                 ]

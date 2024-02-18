@@ -12,9 +12,10 @@ import torch.nn.functional as F
 from autoattack import AutoAttack
 from torch import nn, optim
 from torchvision import datasets, transforms
+import torchvision
 
-# from models.resnet_cifar import ResNet18
-from solo.models.resnet_cifar import ResNet18, ResNet50
+# from models.resnet_cifar import ResNet188
+from solo.models.multi_bn_resnet import resnet18, resnet50
 from solo.models.wide_resnet import wide_resnet28w10
 from solo.models.model_with_linear import ModelwithLinear, LinearClassifier
 from solo.models.resnet_add_normalize import resnet18_NormalizeInput
@@ -58,7 +59,7 @@ def set_loader(opt):
     # construct data loader
     train_transform = transforms.Compose([
         transforms.Resize(32),
-        transforms.RandomCrop(32, padding=4),
+        transforms.RandomCrop(32, padding=4*32//32),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
     ])
@@ -164,10 +165,21 @@ class AttackPGD(nn.Module):
 
 
 def set_model(opt):
-    if "res50" in opt.ckpt:
-        model = ResNet50()
+    if "resnet50" in opt.ckpt:
+        model = torchvision.models.resnet50(pretrained=False)
+        model.fc = nn.Identity()
         classifier = LinearClassifier(
             name=opt.name, feat_dim=2048, num_classes=opt.n_cls)
+    elif "resnet18ss" in opt.ckpt:
+        model = torchvision.models.resnet18(pretrained=False)
+        model.fc = nn.Identity()
+        model.conv1 = nn.Conv2d(
+            3, 64, kernel_size=3, stride=1, padding=2, bias=False
+        )
+        model.maxpool = nn.Identity()
+        classifier = LinearClassifier(
+            name=opt.name, feat_dim=512, num_classes=opt.n_cls)
+
     elif "wideres28_10" in opt.ckpt:
         model = wide_resnet28w10()
         classifier = LinearClassifier(name=opt.name, feat_dim=model.inplanes, num_classes=opt.n_cls)

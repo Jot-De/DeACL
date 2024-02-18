@@ -127,7 +127,7 @@ class NCropAugmentation:
         self.weak_aug = transforms.Compose(
             [
                 transforms.Resize(image_size),
-                transforms.RandomCrop(image_size, padding=4),
+                transforms.RandomCrop(image_size, padding=4*image_size//32),
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.ToTensor(),
             ]

@@ -46,10 +46,20 @@ from solo.utils.lars import LARSWrapper
 from solo.utils.metrics import accuracy_at_k, weighted_mean
 from solo.utils.momentum import MomentumUpdater, initialize_momentum_params
 from torch.optim.lr_scheduler import CosineAnnealingLR, MultiStepLR
-from torchvision.models import resnet50
-
-from solo.models.resnet_add_normalize import resnet18_NormalizeInput
+from torchvision.models import resnet50, resnet18
+from torchvision import transforms
+from solo.models.resnet_add_normalize import resnet18_NormalizeInput, resnet50_NormalizeInput
 from solo.models.wide_resnet import wide_resnet28w10
+
+# class ResNetWrapper(torch.nn.Module):
+#     def __init__(self, encoder):
+#         super().__init__()
+#         self.encoder = encoder
+#         self.normalize = transforms.Normalize( mean = (0.5071, 0.4865, 0.4409),
+#             std = (0.2673, 0.2564, 0.2762))
+        
+#     def forward(self, x):
+#         return self.encoder(self.normalize(x))
 
 
 def static_lr(
@@ -67,7 +77,7 @@ class BaseMethod(pl.LightningModule):
     _SUPPORTED_BACKBONES = {
         # "resnet18": resnet18,
         "resnet18": resnet18_NormalizeInput,
-        "resnet50": resnet50,
+        "resnet50": resnet50_NormalizeInput,
         "vit_tiny": vit_tiny,
         "vit_small": vit_small,
         "vit_base": vit_base,
@@ -872,6 +882,7 @@ class BaseMomentumMethod(BaseMethod):
 
 _SUPPORT_KD_TEACHER = {
     # cifar10 pretrained
+    "dino_resnet50_imagenet" : "dino_resnet50_pretrain.pth",
     "simclr_resnet50_1x_imagenet" : "simclr-v1-resnet50-1x-imagenet.pth",
     "simsiam_resnet50_imagenet" : "checkpoint_0099.pth.tar",
     "dino_vits16_imagenet": "dino_deitsmall16_pretrain.pth",
@@ -933,59 +944,64 @@ class BaseDistillationATMethod(BaseMethod):
         self.teacher_ckpt_dir = (
             teacher_root_dir + _SUPPORT_KD_TEACHER[distillation_teacher]
         )
-        if distillation_teacher == "dino_vits16_imagenet":
+        if "dino" in distillation_teacher:
             teacher_ckpt = torch.load(self.teacher_ckpt_dir)
         else:
             teacher_ckpt = torch.load(self.teacher_ckpt_dir)["state_dict"]
 
-        #print("-"*20)
+        print("-"*20)
         print(teacher_ckpt.keys())
-        #print("-"*20)
+        print("-"*20)
         # it seems that we can not assigning values to a model
         new_dict = {}
         self.projector_state_dict = {}
         classifier_state_dict = {}
-        for key, weights in teacher_ckpt.items():
-            ori_key = key
-            if "classifier" in key:
-                key = key.replace("classifier.", "")
+        if distillation_teacher =="dino_resnet50_imagenet":
+            new_dict = teacher_ckpt
+        elif distillation_teacher =="dino_vits16_imagenet":
+            new_dict = teacher_ckpt
+        else:
+            for key, weights in teacher_ckpt.items():
+                ori_key = key
+                if "classifier" in key:
+                    key = key.replace("classifier.", "")
 
-                classifier_state_dict[key] = weights
-
-            if distillation_teacher =="simclr_resnet50_1x_imagenet":
-                if "fc.weight" in key or "fc.bias" in key:
-                    key = key.replace("fc.", "")
                     classifier_state_dict[key] = weights
-                else:
+
+                if distillation_teacher =="simclr_resnet50_1x_imagenet":
+                    if "fc.weight" in key or "fc.bias" in key:
+                        key = key.replace("fc.", "")
+                        classifier_state_dict[key] = weights
+                    else:
+                        new_dict[key] = teacher_ckpt[ori_key]
+
+
+                if ("momentum_projector" not in key) and ("projector" in key):
+                    key = key.replace("projector.", "")
+                    self.projector_state_dict[key] = weights
+
+                if ("projector" in key) or ("momentum" in key):
+                    continue
+                # print(ori_key)
+                if "module." in key:
+                    key = key.replace("module.", "")
+
+                if "backbone." in key:
+                    key = key.replace("backbone.", "")
                     new_dict[key] = teacher_ckpt[ori_key]
-
-
-            if ("momentum_projector" not in key) and ("projector" in key):
-                key = key.replace("projector.", "")
-                self.projector_state_dict[key] = weights
-
-            if ("projector" in key) or ("momentum" in key):
-                continue
-            # print(ori_key)
-            if "module." in key:
-                key = key.replace("module.", "")
-
-            if "backbone." in key:
-                key = key.replace("backbone.", "")
-                new_dict[key] = teacher_ckpt[ori_key]
-            
-            if "encoder." in key:
-                key = key.replace("encoder.", "")
-                new_dict[key] = teacher_ckpt[ori_key]
-        
-
-        
+                
+                if "encoder." in key:
+                    key = key.replace("encoder.", "")
+                    new_dict[key] = teacher_ckpt[ori_key]
+                
         #print("-"*20)
         print(new_dict.keys())
         print(classifier_state_dict.keys())
         # import ipdb; ipdb.set_trace()
         mathch_status = self.momentum_backbone.load_state_dict(new_dict, strict=False)
         print(mathch_status)
+
+        #self.momentum_backbone = ResNetWrapper(self.momentum_backbone)
 
         # Make StudentNetwork have same weight with Teacher
         # import ipdb; ipdb.set_trace()
@@ -1010,6 +1026,9 @@ class BaseDistillationATMethod(BaseMethod):
             )
         else:
             self.momentum_classifier = None
+
+        #self.backbone = ResNetWrapper(self.backbone)
+    
 
     @property
     def learnable_params(self) -> List[Dict[str, Any]]:

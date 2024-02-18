@@ -131,8 +131,8 @@ class Checkpointer(Callback):
             ckpt = self.path / self.ckpt_placeholder.format(epoch)
             trainer.save_checkpoint(ckpt)
 
-            if self.last_ckpt and self.last_ckpt != ckpt and not self.keep_previous_checkpoints:
-                os.remove(self.last_ckpt)
+            # if self.last_ckpt and self.last_ckpt != ckpt and not self.keep_previous_checkpoints:
+            #     os.remove(self.last_ckpt)
             self.last_ckpt = ckpt
 
     def on_train_start(self, trainer: pl.Trainer, _):

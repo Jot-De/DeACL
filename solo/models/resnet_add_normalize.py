@@ -222,7 +222,8 @@ class ResNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
         self.normalize = NormalizeByChannelMeanStd(
-            mean=[0.4914, 0.4822, 0.4465], std=[0.247, 0.243, 0.261])
+            mean = (0.5071, 0.4865, 0.4409),
+            std = (0.2673, 0.2564, 0.2762))
 
 
         # Zero-initialize the last BN in each residual branch,
@@ -325,7 +326,7 @@ def resnet34(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
                    **kwargs)
 
 
-def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnet50_NormalizeInput(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
     r"""ResNet-50 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
