@@ -222,9 +222,8 @@ class ResNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
         self.normalize = NormalizeByChannelMeanStd(
-            mean = (0.5071, 0.4865, 0.4409),
-            std = (0.2673, 0.2564, 0.2762))
-
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225])
 
         # Zero-initialize the last BN in each residual branch,
         # so that the residual branch starts with zeros, and each residual block behaves like an identity.

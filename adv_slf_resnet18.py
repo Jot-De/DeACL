@@ -18,17 +18,16 @@ import torchvision
 from solo.models.multi_bn_resnet import resnet18, resnet50
 from solo.models.wide_resnet import wide_resnet28w10
 from solo.models.model_with_linear import ModelwithLinear, LinearClassifier
-from solo.models.resnet_add_normalize import resnet18_NormalizeInput, resnet50_NormalizeInput
+from solo.models.resnet_add_normalize import resnet18_NormalizeInput
 
-# class ResNetWrapper(torch.nn.Module):
-#     def __init__(self, encoder):
-#         super().__init__()
-#         self.encoder = encoder
-#         self.normalize = transforms.Normalize( mean = (0.5071, 0.4865, 0.4409),
-#             std = (0.2673, 0.2564, 0.2762))
+class ResNetWrapper(torch.nn.Module):
+    def __init__(self, encoder):
+        super().__init__()
+        self.encoder = encoder
+        self.normalize = transforms.Normalize(mean = (0.4914, 0.4822, 0.4465), std=(0.2470, 0.2430, 0.2610))
         
-#     def forward(self, x):
-#         return self.encoder(self.normalize(x))
+    def forward(self, x):
+        return self.encoder(self.normalize(x))
 
 
 class AverageMeter(object):
@@ -69,13 +68,13 @@ def accuracy(output, target, topk=(1,)):
 def set_loader(opt):
     # construct data loader
     train_transform = transforms.Compose([
-        transforms.Resize(224),
-        transforms.RandomCrop(224, padding=4*224//32),
+        transforms.Resize(32),
+        transforms.RandomCrop(32, padding=4*32//32),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
     ])
     val_transform = transforms.Compose([
-        transforms.Resize(224),
+        transforms.Resize(32),
         transforms.ToTensor(),
     ])
 
@@ -177,7 +176,7 @@ class AttackPGD(nn.Module):
 
 def set_model(opt):
     if "resnet50" in opt.ckpt:
-        model = resnet50_NormalizeInput()
+        model = torchvision.models.resnet50(pretrained=False)
         model.fc = nn.Identity()
         classifier = LinearClassifier(
             name=opt.name, feat_dim=2048, num_classes=opt.n_cls)
@@ -212,18 +211,17 @@ def set_model(opt):
 
     if 'state_dict' in state_dict.keys():
         state_dict = state_dict['state_dict']
-    print(state_dict.keys())
 
     state_dict_load = {}
     for k,v in state_dict.items():
-        if k.startswith('momentum_backbone.'):
-            state_dict_load[k.replace('momentum_backbone.', '')] = v.clone()
+        if k.startswith('backbone.encoder.'):
+            state_dict_load[k.replace('backbone.encoder.', '')] = v.clone()
 
     model = model.cuda()
     classifier = classifier.cuda()
     criterion = criterion.cuda()
     config = {
-        'epsilon': 8/ 255.,
+        'epsilon': 8.0 / 255.,
         'num_steps': 20,
         'step_size': 2.0 / 255,
         'random_start': True,
@@ -234,7 +232,7 @@ def set_model(opt):
     cudnn.benchmark = True
 
     model.load_state_dict(state_dict_load, strict=True)
-    #model = ResNetWrapper(model).cuda()
+    model = ResNetWrapper(model).cuda()
     print(model)
     return model, classifier, net, criterion
 
@@ -412,7 +410,7 @@ def main(slf_config=None, ):
     # model.classifier.weight = classifier.classifier.weight
     # model.classifier.bias = classifier.classifier.bias
     
-    adversary = AutoAttack(model, norm="Linf", eps=8/
+    adversary = AutoAttack(model, norm="Linf", eps=8.0 /
                            255., log_path=log_path, version="standard", seed=0)
     l = [x for (x, y) in val_loader]
     x_test = torch.cat(l, 0)

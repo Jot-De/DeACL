@@ -39,6 +39,7 @@ from solo.utils.backbones import (
     vit_base,
     vit_large,
     vit_small,
+    vit_small_NormalizeInput,
     vit_tiny,
 )
 from solo.utils.knn import WeightedKNNClassifier
@@ -55,8 +56,10 @@ from solo.models.wide_resnet import wide_resnet28w10
 #     def __init__(self, encoder):
 #         super().__init__()
 #         self.encoder = encoder
-#         self.normalize = transforms.Normalize( mean = (0.5071, 0.4865, 0.4409),
-#             std = (0.2673, 0.2564, 0.2762))
+#         # self.normalize = transforms.Normalize( mean = (0.5071, 0.4865, 0.4409),
+#         #     std = (0.2673, 0.2564, 0.2762))
+#         self.normalize = transforms.Normalize(mean=(0.4914, 0.4822, 0.4465),
+#                                                std=(0.2470, 0.2430, 0.2610))
         
 #     def forward(self, x):
 #         return self.encoder(self.normalize(x))
@@ -75,11 +78,12 @@ def static_lr(
 
 class BaseMethod(pl.LightningModule):
     _SUPPORTED_BACKBONES = {
-        # "resnet18": resnet18,
+        #"resnet18": resnet18,
         "resnet18": resnet18_NormalizeInput,
         "resnet50": resnet50_NormalizeInput,
         "vit_tiny": vit_tiny,
-        "vit_small": vit_small,
+        #"vit_small": vit_small,
+        "vit_small": vit_small_NormalizeInput,
         "vit_base": vit_base,
         "vit_large": vit_large,
         "swin_tiny": swin_tiny,
@@ -886,6 +890,7 @@ _SUPPORT_KD_TEACHER = {
     "simclr_resnet50_1x_imagenet" : "simclr-v1-resnet50-1x-imagenet.pth",
     "simsiam_resnet50_imagenet" : "checkpoint_0099.pth.tar",
     "dino_vits16_imagenet": "dino_deitsmall16_pretrain.pth",
+    "dinov2_vits14_imagenet": "dinov2_vits14_pretrain.pth",
     "mocov2_cifar10": "mocov2plus-cifar10-1nhrg2pm-ep=999.ckpt",
     "simclr_cifar10": "simclr-cifar10-b30xch14-ep=999.ckpt",
 }
@@ -956,9 +961,7 @@ class BaseDistillationATMethod(BaseMethod):
         new_dict = {}
         self.projector_state_dict = {}
         classifier_state_dict = {}
-        if distillation_teacher =="dino_resnet50_imagenet":
-            new_dict = teacher_ckpt
-        elif distillation_teacher =="dino_vits16_imagenet":
+        if distillation_teacher in ["dino_resnet50_imagenet", "dino_vits16_imagenet","dinov2_vits14_imagenet"]:
             new_dict = teacher_ckpt
         else:
             for key, weights in teacher_ckpt.items():
@@ -1028,7 +1031,8 @@ class BaseDistillationATMethod(BaseMethod):
             self.momentum_classifier = None
 
         #self.backbone = ResNetWrapper(self.backbone)
-    
+        print(self.backbone)
+
 
     @property
     def learnable_params(self) -> List[Dict[str, Any]]:

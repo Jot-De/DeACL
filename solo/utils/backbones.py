@@ -34,6 +34,48 @@ from timm.models.swin_transformer import _create_swin_transformer
 from timm.models.vision_transformer import _create_vision_transformer
 
 
+
+
+def normalize_fn(tensor, mean, std):
+    """Differentiable version of torchvision.functional.normalize"""
+    # here we assume the color channel is in at dim=1
+    mean = mean[None, :, None, None]
+    std = std[None, :, None, None]
+    # import ipdb; ipdb.set_trace()
+    return tensor.sub(mean).div(std)
+
+
+class NormalizeByChannelMeanStd(nn.Module):
+    def __init__(self, mean, std):
+        super(NormalizeByChannelMeanStd, self).__init__()
+        if not isinstance(mean, torch.Tensor):
+            mean = torch.tensor(mean)
+        if not isinstance(std, torch.Tensor):
+            std = torch.tensor(std)
+        self.register_buffer("mean", mean)
+        self.register_buffer("std", std)
+
+    def forward(self, tensor):
+        # self.mean = self.mean.to("cuda")
+        # self.std = self.std.to("cuda")
+
+        return normalize_fn(tensor, self.mean, self.std)
+
+    def extra_repr(self):
+        return 'mean={}, std={}'.format(self.mean, self.std)
+
+class NormalizationViTWrapper(torch.nn.Module):
+    def __init__(self, encoder):
+        super().__init__()
+        self.encoder = encoder
+        self.normalize = NormalizeByChannelMeanStd(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225])
+        self.num_features = self.encoder.num_features
+    def forward(self, x):
+        return self.encoder(self.normalize(x))
+    
+
 @register_model
 def swin_tiny(window_size=7, **kwargs):
     model_kwargs = dict(
@@ -113,6 +155,11 @@ def vit_small(patch_size=16, **kwargs):
     )
     model = _create_vision_transformer("vit_small_patch16_224", pretrained=False, **model_kwargs)
     return model
+
+@register_model
+def vit_small_NormalizeInput(patch_size=16, **kwargs):
+    model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
+    return NormalizationViTWrapper(model)
 
 
 @register_model

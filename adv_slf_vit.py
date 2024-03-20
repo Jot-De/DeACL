@@ -16,6 +16,7 @@ import torchvision
 
 # from models.resnet_cifar import ResNet188
 from solo.models.multi_bn_resnet import resnet18, resnet50
+from solo.utils.backbones import vit_small_NormalizeInput
 from solo.models.wide_resnet import wide_resnet28w10
 from solo.models.model_with_linear import ModelwithLinear, LinearClassifier
 from solo.models.resnet_add_normalize import resnet18_NormalizeInput, resnet50_NormalizeInput
@@ -194,6 +195,10 @@ def set_model(opt):
     elif "wideres28_10" in opt.ckpt:
         model = wide_resnet28w10()
         classifier = LinearClassifier(name=opt.name, feat_dim=model.inplanes, num_classes=opt.n_cls)
+    elif "vit" in opt.ckpt:
+        model = vit_small_NormalizeInput()
+        classifier = LinearClassifier(
+            name=opt.name, feat_dim=model.num_features, num_classes=opt.n_cls)
     else:
 
         model = resnet18_NormalizeInput()
@@ -216,14 +221,14 @@ def set_model(opt):
 
     state_dict_load = {}
     for k,v in state_dict.items():
-        if k.startswith('momentum_backbone.'):
-            state_dict_load[k.replace('momentum_backbone.', '')] = v.clone()
+        if k.startswith('backbone.'):
+            state_dict_load[k.replace('backbone.', '')] = v.clone()
 
     model = model.cuda()
     classifier = classifier.cuda()
     criterion = criterion.cuda()
     config = {
-        'epsilon': 8/ 255.,
+        'epsilon': 4/ 255.,
         'num_steps': 20,
         'step_size': 2.0 / 255,
         'random_start': True,
@@ -412,7 +417,7 @@ def main(slf_config=None, ):
     # model.classifier.weight = classifier.classifier.weight
     # model.classifier.bias = classifier.classifier.bias
     
-    adversary = AutoAttack(model, norm="Linf", eps=8/
+    adversary = AutoAttack(model, norm="Linf", eps=4/
                            255., log_path=log_path, version="standard", seed=0)
     l = [x for (x, y) in val_loader]
     x_test = torch.cat(l, 0)

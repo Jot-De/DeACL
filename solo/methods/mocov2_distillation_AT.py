@@ -47,7 +47,7 @@ class MoCoV2KDAT(BaseDistillationATMethod):
         teacher_logit_fix: bool,
         loss_type: str,
         projector_ablation: str,
-        epsilon: int = 8,
+        epsilon: int,
         num_steps: int = 5,
         step_size: int = 2,
         trades_k: float = 3,

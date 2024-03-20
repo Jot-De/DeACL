@@ -36,12 +36,11 @@ python3 main_pretrain_AdvTraining.py \
     --accelerator gpu \
     --precision 16 \
     --optimizer sgd \
-    --scheduler warmup_cosine \
+    --scheduler reduce \
     --lr 0.5 \
+    --epsilon 8 \
     --classifier_lr 0.5 \
-    --momentum_classifier \
-    --knn_eval \
-    --weight_decay 5e-6 \
+    --weight_decay 0\
     --batch_size 768 \
     --num_workers 12 \
     --brightness 0.4 \
@@ -51,7 +50,7 @@ python3 main_pretrain_AdvTraining.py \
     --gaussian_prob 0.0 0.0 \
     --crop_size 224 \
     --num_crops_per_aug 1 1 \
-    --name "dino_resnet50_NI_imagenet_lr0.5_k2_decay5e-6" \
+    --name "dino_resnet50_NormInput_imagenet_lr0.5_k2_decay0_eps8" \
     --save_checkpoint \
     --checkpoint_frequency 1 \
     --method mocov2_kd_at \

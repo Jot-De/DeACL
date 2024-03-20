@@ -3,6 +3,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --time=0:30:00
 #SBATCH --job-name=adv_slf
+#SBATCH --partition=interactive
 
 # Recommended way if you want to enable gcc version 10 for the "sbatch" session 
 source /opt/rh/devtoolset-10/enable
@@ -34,6 +35,6 @@ which python
 
 
 
-python adv_slf.py --ckpt /data/jan_dubinski/DeACL/trained_models/mocov2_kd_at/snrm6mb6/dino_resnet50_NormInput_imagenet_lr0.5_k2_decay0-snrm6mb6-ep=61.ckpt --batch_size=512 --learning_rate=0.5 --epochs=15
+python adv_slf_vit.py --ckpt /data/jan_dubinski/DeACL/trained_models/mocov2_kd_at/qb0cb8et/dinov2_vits_lr0.05_k2_decay0_eps8-qb0cb8et-ep=35.ckpt  --batch_size=512 --learning_rate=0.5 --epochs=15
 echo "lr 0.05"
 #python adv_slf.py --ckpt /data/jan_dubinski/DeACL/trained_models/mocov2_kd_at/dokx7u4h/res18_simclr-cifar10_wrapper_test-dokx7u4h-ep=100.ckpt --batch_size=512 --learning_rate=0.5 --epochs=15

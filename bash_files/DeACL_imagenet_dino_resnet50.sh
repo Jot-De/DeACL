@@ -6,6 +6,7 @@ python3 main_pretrain_AdvTraining.py \
     --max_epochs 100 \
     --gpus 0,1  \
     --accelerator gpu \
+    --epsilon 1 \
     --precision 16 \
     --optimizer sgd \
     --scheduler warmup_cosine \

@@ -89,6 +89,8 @@ def main():
     # pretrain dataloader
     if not args.dali:
         # asymmetric augmentations
+        print("args.unique_augs")
+        print(args.unique_augs)
         if args.unique_augs > 1:
             if args.dataset in ["cifar10", "cifar100", "svhn"]:
                 crop_size = 32
@@ -188,7 +190,7 @@ def main():
 
     # 1.7 will deprecate resume_from_checkpoint, but for the moment
     # the argument is the same, but we need to pass it as ckpt_path to trainer.fit
-    ckpt_path = None
+    ckpt_path = args.resume_checkpoint
 
     trainer = Trainer.from_argparse_args(
         args,

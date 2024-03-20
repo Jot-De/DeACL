@@ -76,6 +76,8 @@ def parse_args_pretrain() -> argparse.Namespace:
     parser.add_argument("--save_checkpoint", action="store_true")
     parser.add_argument("--auto_umap", action="store_true")
     parser.add_argument("--auto_resume", action="store_true")
+    parser.add_argument("--resume_checkpoint", type=str, required=False)
+
     temp_args, _ = parser.parse_known_args()
 
     # optionally add checkpointer and AutoUMAP args

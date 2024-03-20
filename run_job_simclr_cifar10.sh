@@ -38,7 +38,7 @@ python3 main_pretrain_AdvTraining.py \
     --scheduler warmup_cosine \
     --lr 0.5 \
     --classifier_lr 0.5 \
-    --weight_decay 5e-4 \
+    --weight_decay 0 \
     --batch_size 512 \
     --num_workers 4 \
     --brightness 0.4 \
@@ -48,7 +48,7 @@ python3 main_pretrain_AdvTraining.py \
     --gaussian_prob 0.0 0.0 \
     --crop_size 32 \
     --num_crops_per_aug 1 1 \
-    --name "res18_simclr-cifar10_wrapper_test" \
+    --name "res18_simclr-cifar10_cifar10norm_wrapper" \
     --save_checkpoint \
     --checkpoint_frequency 25 \
     --method mocov2_kd_at \

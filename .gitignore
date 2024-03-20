@@ -7,10 +7,10 @@ trained_models/
 ckeckpoint/
 logger/
 data/
+TeacherCKPT/
 
 checkpoint/
 
-TeacherCKPT/
 deacl_py310/
 
 *.out
